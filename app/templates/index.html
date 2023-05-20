@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipts</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+        }
+
+        th {
+            background-color: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <h1>Receipts</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="pdf_file">
+        <button type="submit">Upload and Process PDF</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                {% for header in headers %}
+                <th>{{ header }}</th>
+                {% endfor %}
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[4] }}</td>
+                <td>
+                    <form action="/delete" method="post">
+                        <input type="hidden" name="name" value="{{ row[0] }}">
+                        <button type="submit">Delete</button>
+                    </form>
+                    <form action="/reduce" method="post">
+                        <input type="hidden" name="name" value="{{ row[0] }}">
+                        <input type="text" name="reduce_amount" pattern="\d+(,\d*)?" title="Please enter a valid number with a comma separator" step="0.001">
+                        <button type="submit">Reduce Quantity</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

@@ -1,0 +1,13 @@
+version: '3'
+services:
+    uwsgi-nginx-flask:
+        build:
+            dockerfile: Dockerfile
+        ports:
+            - "8888:80"
+        volumes:
+            - app:/app
+        restart: always
+
+volumes:
+    app:
