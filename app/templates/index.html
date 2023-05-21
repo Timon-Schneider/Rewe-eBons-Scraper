@@ -24,6 +24,16 @@
         <input type="file" name="pdf_file">
         <button type="submit">Upload and Process PDF</button>
     </form>
+    <br>
+    <form action="/items" method="get">
+        <button type="submit">View All Items</button>
+    </form>
+    <form action="/changes" method="get">
+        <button type="submit">View Changes</button>
+    </form>
+    <br>
+    {% if view == 'items' %}
+    <h2>All Items</h2>
     <table>
         <thead>
             <tr>
@@ -56,5 +66,43 @@
             {% endfor %}
         </tbody>
     </table>
+    {% elif view == 'changes' %}
+    <h2>Changes</h2>
+    <form action="/changes" method="get">
+        <select name="filter">
+            <option value="">All</option>
+            {% for pdf_file in pdf_files %}
+            <option value="{{ pdf_file }}" {% if filter_value == pdf_file %}selected{% endif %}>{{ pdf_file }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Apply Filter</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                {% for header in headers %}
+                <th>{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr>
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[4] }}</td>
+                <td>{{ row[5] }}</td>
+                <td>{{ row[6] }}</td>
+                <td>{{ row[7] }}</td>
+                <td>{{ row[8] }}</td>
+                <td>{{ row[9] }}</td>
+                <td>{{ row[10] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
 </body>
 </html>
