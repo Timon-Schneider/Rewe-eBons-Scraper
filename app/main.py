@@ -7,6 +7,7 @@ from flask import Flask, render_template, request, redirect
 from flask import url_for
 import sqlite3
 from werkzeug.utils import secure_filename
+import requests
 
 app = Flask(__name__)
 
@@ -14,6 +15,8 @@ def extract_data(text):
     lines = text.split('\n')
     items = []
     current_item = None
+    zip_code = None
+    street = None
     for line in lines:
         if re.match(r'^-+$', line.strip()):
             break
@@ -29,7 +32,36 @@ def extract_data(text):
         if item_match:
             current_item = {'name': item_match.group(1).strip(), 'total_price': item_match.group(2)}
             items.append(current_item)
-    return items
+        zip_code_match = re.search(r'\b(\d{5}) [A-Za-z]', line)
+        if zip_code_match and not zip_code:
+            zip_code = zip_code_match.group(1)
+            if len(lines) > 1:
+                index = lines.index(line)
+                if index > 0:
+                    street = lines[index - 1]
+    
+    # API Request
+    api_url = f"https://www.rewe.de/api/marketsearch?searchTerm={street} {zip_code}"
+    try:
+        response = requests.get(api_url)
+        response.raise_for_status()  # Raise an exception for non-successful status codes
+        json_data = response.json()
+        
+        # Extracting data from the API response
+        if json_data:
+            company_name = json_data[0].get('companyName', 'unknown company')
+            city = json_data[0].get('contactCity', 'unknown city')
+            street = json_data[0].get('contactStreet', street)
+            zip_code = json_data[0].get('contactZipCode', zip_code)
+        else:
+            company_name = 'unknown company'
+            city = 'unknown city'
+    
+    except requests.exceptions.RequestException:
+        company_name = 'unknown company'
+        city = 'unknown city'
+    
+    return {'CompanyName': company_name, 'street': street, 'zip_code': zip_code, 'city': city}, items
 
 def create_table():
     conn = sqlite3.connect('receipts.db')
@@ -42,16 +74,14 @@ def create_table():
              (ChangeID INTEGER PRIMARY KEY AUTOINCREMENT, ItemName text,
              ChangeDate text, ChangeQuantity text, NewQuantity text,
              Oldtotal_price text, Newtotal_price text, Oldunit_price text, 
-             Newunit_price text, unit text, pdf_file text,
-             FOREIGN KEY (ItemName) REFERENCES items(name))''')
-
-
+             Newunit_price text, unit text, pdf_file text, 
+             CompanyInfo text, FOREIGN KEY (ItemName) REFERENCES items(name))''')
 
     conn.commit()
     conn.close()
 
 
-def write_to_database(data, pdf_file):
+def write_to_database(data, pdf_file, company_info):
     conn = sqlite3.connect('receipts.db')
     c = conn.cursor()
 
@@ -79,22 +109,25 @@ def write_to_database(data, pdf_file):
             Oldunit_price = existing_unit_price
             Newunit_price = new_unit_price
             unit = item['unit']
+            company_info_str = f"{company_info['CompanyName']}, {company_info['street']}, {company_info['zip_code']} {company_info['city']}"  # Concatenate the company information
 
             c.execute('UPDATE items SET total_price=?, quantity=?, unit_price=? WHERE name=?',
-                  (merged_total_price_str, merged_quantity_str, new_unit_price, item['name']))
-            c.execute('INSERT INTO changes (ItemName, ChangeDate, ChangeQuantity, NewQuantity, Oldtotal_price, Newtotal_price, Oldunit_price, Newunit_price, unit, pdf_file) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?)',
-                  (item['name'], new_quantity, merged_quantity_str, Oldtotal_price, Newtotal_price, Oldunit_price, Newunit_price, unit, pdf_file))
+                      (merged_total_price_str, merged_quantity_str, new_unit_price, item['name']))
+            c.execute('INSERT INTO changes (ItemName, ChangeDate, ChangeQuantity, NewQuantity, Oldtotal_price, Newtotal_price, Oldunit_price, Newunit_price, unit, pdf_file, CompanyInfo) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                      (item['name'], new_quantity, merged_quantity_str, Oldtotal_price, Newtotal_price, Oldunit_price, Newunit_price, unit, pdf_file, company_info_str))
         else:
             quantity = item['quantity'].replace('.', ',')
             c.execute('INSERT INTO items VALUES (?, ?, ?, ?, ?)',
                       (item['name'], item['total_price'], quantity, item['unit'], item['unit_price']))
 
             # Log the change in the "changes" table
-            c.execute('INSERT INTO changes (ItemName, ChangeDate, ChangeQuantity, NewQuantity, Newtotal_price, Newunit_price, unit, pdf_file) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?)',
-                    (item['name'], quantity, quantity, item['total_price'], item['unit_price'], item['unit'], pdf_file))
+            company_info_str = f"{company_info['CompanyName']} {company_info['street']} {company_info['zip_code']} {company_info['city']}"  # Concatenate the company information
+            c.execute('INSERT INTO changes (ItemName, ChangeDate, ChangeQuantity, NewQuantity, Newtotal_price, Newunit_price, unit, pdf_file, CompanyInfo) VALUES (?, CURRENT_TIMESTAMP, ?, ?, ?, ?, ?, ?, ?)',
+                      (item['name'], quantity, quantity, item['total_price'], item['unit_price'], item['unit'], pdf_file, company_info_str))
 
     conn.commit()
     conn.close()
+
 
 
 
@@ -130,8 +163,7 @@ def display_changes():
     data = c.fetchall()
     conn.close()
 
-    headers = ['ChangeID', 'ItemName', 'ChangeDate', 'ChangeQuantity', 'NewQuantity', 'Oldtotal_price', 'Newtotal_price', 'Oldunit_price', 'Newunit_price', 'unit', 'pdf_file']
-
+    headers = ['ChangeID', 'ItemName', 'ChangeDate', 'ChangeQuantity', 'NewQuantity', 'Oldtotal_price', 'Newtotal_price', 'Oldunit_price', 'Newunit_price', 'unit', 'pdf_file', 'CompanyInfo']
 
     return render_template('index.html', view='changes', headers=headers, data=data, pdf_files=pdf_files, filter_value=filter_value)
 
@@ -214,7 +246,7 @@ def process_pdf_file(file_path):
         text = ""
         for page in pdf.pages:
             text += page.extract_text()
-        items = extract_data(text)
+        company_info, items = extract_data(text)
         for item in items:
             if 'quantity' not in item:
                 item['quantity'] = '1'
@@ -224,7 +256,8 @@ def process_pdf_file(file_path):
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         filename = os.path.basename(file_path)
         pdf_file = f"{filename} ({timestamp})"
-        write_to_database(data, pdf_file)
+        write_to_database(data, pdf_file, company_info)
+
 
 
 
