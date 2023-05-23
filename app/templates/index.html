@@ -28,8 +28,8 @@
     <form action="/items" method="get">
         <button type="submit">View All Items</button>
     </form>
-    <form action="/changes" method="get">
-        <button type="submit">View Changes</button>
+    <form action="/invoices" method="get">
+        <button type="submit">View Invoices</button>
     </form>
     <br>
     {% if view == 'items' %}
@@ -51,13 +51,14 @@
                 <td>{{ row[2] }}</td>
                 <td>{{ row[3] }}</td>
                 <td>{{ row[4] }}</td>
+                <td>{{ row[5] }}</td>
                 <td>
                     <form action="/delete" method="post">
-                        <input type="hidden" name="name" value="{{ row[0] }}">
+                        <input type="hidden" name="product_id" value="{{ row[0] }}">
                         <button type="submit">Delete</button>
                     </form>
                     <form action="/reduce" method="post">
-                        <input type="hidden" name="name" value="{{ row[0] }}">
+                        <input type="hidden" name="product_id" value="{{ row[0] }}">
                         <input type="text" name="reduce_amount" pattern="\d+(,\d*)?" title="Please enter a valid number with a comma separator" step="0.001">
                         <button type="submit">Reduce Quantity</button>
                     </form>
@@ -66,9 +67,9 @@
             {% endfor %}
         </tbody>
     </table>
-    {% elif view == 'changes' %}
-    <h2>Changes</h2>
-    <form action="/changes" method="get">
+    {% elif view == 'invoices' %}
+    <h2>Invoices</h2>
+    <form action="/invoices" method="get">
         <select name="filter">
             <option value="">All</option>
             {% for pdf_file in pdf_files %}
@@ -96,10 +97,6 @@
                 <td>{{ row[5] }}</td>
                 <td>{{ row[6] }}</td>
                 <td>{{ row[7] }}</td>
-                <td>{{ row[8] }}</td>
-                <td>{{ row[9] }}</td>
-                <td>{{ row[10] }}</td>
-                <td>{{ row[11] }}</td>
             </tr>
             {% endfor %}
         </tbody>

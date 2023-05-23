@@ -65,6 +65,7 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 receipts.db
+inventory.db
 
 # Scrapy stuff:
 .scrapy
