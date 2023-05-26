@@ -3,35 +3,142 @@
 <head>
     <title>Receipts</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333333;
+        }
+
+        h2 {
+            color: #333333;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        input[type="number"],
+        select {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
         table {
             border-collapse: collapse;
             width: 100%;
+            margin-bottom: 20px;
         }
 
         th, td {
-            border: 1px solid black;
+            border: 1px solid #ddd;
             padding: 8px;
         }
 
         th {
-            background-color: lightgray;
+            background-color: #f2f2f2;
+        }
+
+        .form-row {
+            margin-bottom: 10px;
+        }
+
+        .item-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .item-row input[type="text"],
+        .item-row input[type="number"] {
+            flex: 1;
+            margin-right: 10px;
+        }
+
+        .item-row button {
+            margin-left: 10px;
+            background-color: #4CAF50;
+        }
+
+        .table-row:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .table-row:hover {
+            background-color: #e6e6e6;
+        }
+
+        .add-receipt-form-btn {
+            font-size: 16px;
+            padding: 12px 24px;
+            background-color: #1976D2;
+            color: white;
+            margin-top: 10px;
+        }
+
+        .add-receipt-form-btn:hover {
+            background-color: #0D47A1;
+        }
+
+        .remove-item {
+            background-color: #D32F2F !important;
+        }
+
+        .remove-item:hover {
+            background-color: #B71C1C !important;
         }
     </style>
 </head>
 <body>
     <h1>Receipts</h1>
+
+    <div class="form-row">
+        <form action="/add_receipt" method="get">
+            <button type="submit">Add Receipt/Items Manually</button>
+        </form>
+    </div>
+
     <form action="/upload" method="post" enctype="multipart/form-data">
         <input type="file" name="pdf_file">
         <button type="submit">Upload and Process PDF</button>
     </form>
-    <br>
-    <form action="/items" method="get">
-        <button type="submit">View All Items</button>
-    </form>
-    <form action="/invoices" method="get">
-        <button type="submit">View Invoices</button>
-    </form>
-    <br>
+
+    <div class="form-row">
+        <form action="/items" method="get">
+            <button type="submit">View All Items</button>
+        </form>
+        <form action="/invoices" method="get">
+            <button type="submit">View Invoices</button>
+        </form>
+    </div>
+
     {% if view == 'items' %}
     <h2>All Items</h2>
     <table>
@@ -45,7 +152,7 @@
         </thead>
         <tbody>
             {% for row in data %}
-            <tr>
+            <tr class="table-row">
                 <td>{{ row[0] }}</td>
                 <td>{{ row[1] }}</td>
                 <td>{{ row[2] }}</td>
@@ -67,16 +174,58 @@
             {% endfor %}
         </tbody>
     </table>
+
+    {% elif view == 'add_receipt' %}
+    <h2>Add Receipt</h2>
+    <form action="/add_receipt" method="post">
+        <div class="form-row">
+            <label for="company_name">Company Name:</label>
+            <input type="text" name="company_name" required>
+        </div>
+
+        <div class="form-row">
+            <label for="street">Street:</label>
+            <input type="text" name="street" required>
+        </div>
+
+        <div class="form-row">
+            <label for="zip_code">ZIP Code:</label>
+            <input type="text" name="zip_code" required>
+        </div>
+
+        <div class="form-row">
+            <label for="city">City:</label>
+            <input type="text" name="city" required>
+        </div>
+
+        <h3>Items</h3>
+        <div id="items-container">
+            <div class="item-row">
+                <input type="text" name="item_name[]" placeholder="Item Name" required>
+                <input type="number" name="quantity[]" placeholder="Quantity" required>
+                <input type="text" name="unit[]" placeholder="Unit" required>
+                <input type="number" name="unit_price[]" step="0.01" placeholder="Unit Price" required>
+                <button type="button" class="remove-item">Remove</button>
+            </div>
+        </div>
+        <button type="button" id="add-item">Add Item</button>
+
+        <div class="form-row">
+            <button type="submit" class="add-receipt-form-btn">Add Receipt</button>
+        </div>
+    </form>
     {% elif view == 'invoices' %}
     <h2>Invoices</h2>
     <form action="/invoices" method="get">
-        <select name="filter">
-            <option value="">All</option>
-            {% for pdf_file in pdf_files %}
-            <option value="{{ pdf_file }}" {% if filter_value == pdf_file %}selected{% endif %}>{{ pdf_file }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Apply Filter</button>
+        <div class="form-row">
+            <select name="filter">
+                <option value="">All</option>
+                {% for pdf_file in pdf_files %}
+                <option value="{{ pdf_file }}" {% if filter_value == pdf_file %}selected{% endif %}>{{ pdf_file }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit">Apply Filter</button>
+        </div>
     </form>
     <table>
         <thead>
@@ -88,7 +237,7 @@
         </thead>
         <tbody>
             {% for row in data %}
-            <tr>
+            <tr class="table-row">
                 <td>{{ row[0] }}</td>
                 <td>{{ row[1] }}</td>
                 <td>{{ row[2] }}</td>
@@ -102,5 +251,26 @@
         </tbody>
     </table>
     {% endif %}
+
+    <script>
+        document.getElementById("add-item").addEventListener("click", function () {
+            var container = document.getElementById("items-container");
+            var row = document.createElement("div");
+            row.classList.add("item-row");
+            row.innerHTML = '<input type="text" name="item_name[]" placeholder="Item Name" required>' +
+                '<input type="number" name="quantity[]" placeholder="Quantity" required>' +
+                '<input type="text" name="unit[]" placeholder="Unit" required>' +
+                '<input type="number" name="unit_price[]" step="0.01" placeholder="Unit Price" required>' +
+                '<button type="button" class="remove-item">Remove</button>';
+            container.appendChild(row);
+        });
+
+        document.addEventListener("click", function (event) {
+            if (event.target.classList.contains("remove-item")) {
+                var row = event.target.parentNode;
+                row.parentNode.removeChild(row);
+            }
+        });
+    </script>
 </body>
 </html>

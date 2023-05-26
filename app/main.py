@@ -594,6 +594,46 @@ def upload_file():
         os.remove(file_path)  # Delete the uploaded file after processing
     return redirect('/')
 
+@app.route('/add_receipt', methods=['GET', 'POST'])
+def add_receipt():
+    if request.method == 'POST':
+        items = []
+        item_names = request.form.getlist('item_name[]')
+        quantities = request.form.getlist('quantity[]')
+        units = request.form.getlist('unit[]')
+        unit_prices = request.form.getlist('unit_price[]')
+
+        for i in range(len(item_names)):
+            item_name = item_names[i]
+            quantity = quantities[i]
+            unit = units[i]
+            unit_price = unit_prices[i]
+
+            item = {
+                'name': item_name,
+                'quantity': quantity,
+                'unit': unit,
+                'unit_price': unit_price,
+                'total_price': str(float(quantity.replace(',', '.')) * float(unit_price.replace(',', '.')))
+            }
+            items.append(item)
+
+        company_info = {
+            'CompanyName': request.form.get('company_name'),
+            'street': request.form.get('street'),
+            'zip_code': request.form.get('zip_code'),
+            'city': request.form.get('city')
+        }
+        date = datetime.datetime.now().strftime("%d.%m.%Y")
+
+        write_to_database(items, '', company_info, date)
+
+        return redirect('/items')
+    else:
+        return render_template('index.html', view='add_receipt')
+
+
+
 @app.route('/reduce', methods=['POST'])
 def reduce_quantity():
     product_id = request.form['product_id']
