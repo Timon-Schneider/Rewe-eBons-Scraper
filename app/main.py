@@ -232,20 +232,6 @@ def create_table():
 
     #views ###############################################################################################################################
 
-    # View_InvoiceList
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_InvoiceList AS
-        SELECT invoice_id, date, supplier_id, total_amount, due_date, payment_status
-        FROM Invoices
-    ''')
-
-    # View_ProductList
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ProductList AS
-        SELECT product_id, name, description, price, category_id, manufacturer, weight, dimensions, SKU, unit_id
-        FROM Products
-    ''')
-
     # View_SupplierList
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS View_SupplierList AS
@@ -274,23 +260,23 @@ def create_table():
         FROM InventoryLevels
     ''')
 
-    # View_InvoiceDetails
+# Create InvoiceDetails view
     cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_InvoiceDetails AS
-        SELECT i.invoice_id, i.date, i.supplier_id, i.total_amount, i.due_date, i.currency, i.payment_status,
-            ii.invoice_item_id, ii.product_id, ii.quantity, ii.unit_price, ii.discount_percentage, ii.tax_rate, ii.total_amount
-        FROM Invoices AS i
-        INNER JOIN InvoiceItems AS ii ON i.invoice_id = ii.invoice_id
+        CREATE VIEW IF NOT EXISTS InvoiceDetails AS
+        SELECT Invoices.invoice_id, Invoices.date, Invoices.total_amount, Invoices.due_date, Invoices.currency, Invoices.payment_status,
+            Suppliers.name AS supplier_name, Suppliers.address AS supplier_address,
+            InvoiceItems.product_id, InvoiceItems.quantity, InvoiceItems.unit_price, InvoiceItems.discount_percentage, InvoiceItems.tax_rate,
+            Products.name AS product_name, Products.description AS product_description, Products.price AS product_price, Products.manufacturer,
+            Categories.name AS category_name, Units.name AS unit_name
+        FROM Invoices
+        INNER JOIN Suppliers ON Invoices.supplier_id = Suppliers.supplier_id
+        INNER JOIN InvoiceItems ON Invoices.invoice_id = InvoiceItems.invoice_id
+        INNER JOIN Products ON InvoiceItems.product_id = Products.product_id
+        LEFT JOIN Categories ON Products.category_id = Categories.category_id
+        INNER JOIN Units ON Products.unit_id = Units.unit_id;
     ''')
 
-    # View_ProductDetails
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ProductDetails AS
-        SELECT p.product_id, p.name, p.description, p.price, p.category_id, p.manufacturer, p.weight, p.dimensions, p.SKU, p.unit_id,
-            pa.attribute_name, pa.attribute_value
-        FROM Products AS p
-        LEFT JOIN ProductAttributes AS pa ON p.product_id = pa.product_id
-    ''')
+
 
     # View_SupplierDetails
     cursor.execute('''
@@ -315,66 +301,6 @@ def create_table():
         SELECT u.unit_id, u.name, u.abbreviation, p.product_id, p.name, p.description, p.price
         FROM Units AS u
         LEFT JOIN Products AS p ON u.unit_id = p.unit_id
-    ''')
-
-    # View_PendingInvoices
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_PendingInvoices AS
-        SELECT invoice_id, date, supplier_id, total_amount, due_date, payment_status
-        FROM Invoices
-        WHERE payment_status = 'Pending'
-    ''')
-
-    # View_ExpensiveProducts
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ExpensiveProducts AS
-        SELECT product_id, name, price
-        FROM Products
-        WHERE price > 1000
-    ''')
-
-    # View_LowInventoryProducts
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_LowInventoryProducts AS
-        SELECT p.product_id, p.name, p.price, il.quantity
-        FROM Products AS p
-        INNER JOIN InventoryLevels AS il ON p.product_id = il.product_id
-        WHERE il.quantity < 10
-    ''')
-
-    # View_RevenueBySupplier
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_RevenueBySupplier AS
-        SELECT s.supplier_id, s.name, SUM(i.total_amount) AS total_revenue
-        FROM Suppliers AS s
-        LEFT JOIN Invoices AS i ON s.supplier_id = i.supplier_id
-        GROUP BY s.supplier_id
-    ''')
-
-    # View_ExpiredInvoices
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ExpiredInvoices AS
-        SELECT invoice_id, date, supplier_id, total_amount, due_date, payment_status
-        FROM Invoices
-        WHERE payment_status = 'Pending' AND due_date < DATE('now')
-    ''')
-
-    # View_BestSellingProducts
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_BestSellingProducts AS
-        SELECT p.product_id, p.name, SUM(ii.quantity) AS total_quantity_sold
-        FROM Products AS p
-        INNER JOIN InvoiceItems AS ii ON p.product_id = ii.product_id
-        GROUP BY p.product_id
-        ORDER BY total_quantity_sold DESC
-    ''')
-
-    # View_OverdueInvoices
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_OverdueInvoices AS
-        SELECT invoice_id, date, supplier_id, total_amount, due_date, payment_status
-        FROM Invoices
-        WHERE payment_status = 'Pending' AND due_date < DATE('now')
     ''')
 
     # View_TotalInventoryValue
@@ -416,42 +342,6 @@ def create_table():
         ORDER BY total_revenue DESC
     ''')
 
-    # View_ProductsWithDiscounts
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ProductsWithDiscounts AS
-        SELECT p.product_id, p.name, ii.discount_percentage
-        FROM Products AS p
-        INNER JOIN InvoiceItems AS ii ON p.product_id = ii.product_id
-        WHERE ii.discount_percentage > 0
-    ''')
-
-    # View_ActiveSuppliers
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ActiveSuppliers AS
-        SELECT s.supplier_id, s.name, s.address, s.contact_number, s.email, s.preferred_payment_terms, s.lead_time
-        FROM Suppliers AS s
-        INNER JOIN Invoices AS i ON s.supplier_id = i.supplier_id
-    ''')
-
-    # View_TotalSalesByCategory
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_TotalSalesByCategory AS
-        SELECT c.category_id, c.name, SUM(ii.quantity * ii.unit_price) AS total_sales
-        FROM Categories AS c
-        INNER JOIN Products AS p ON c.category_id = p.category_id
-        INNER JOIN InvoiceItems AS ii ON p.product_id = ii.product_id
-        GROUP BY c.category_id
-    ''')
-
-    # View_ExpiredProducts
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS View_ExpiredProducts AS
-        SELECT p.product_id, p.name, ii.due_date
-        FROM Products AS p
-        INNER JOIN InvoiceItems AS ii ON p.product_id = ii.product_id
-        WHERE ii.due_date < DATE('now')
-    ''')
-
     # Create the ProductPriceHistory view
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS View_ProductPriceHistory AS
@@ -460,6 +350,7 @@ def create_table():
         INNER JOIN PriceHistory AS ph ON p.product_id = ph.product_id
     ''')
 
+    # Create the ProductInventoryView view
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS ProductInventoryView AS
         SELECT p.product_id, p.name, p.price, il.quantity, u.abbreviation, ROUND(p.price * il.quantity, 2) AS total_price
@@ -469,6 +360,7 @@ def create_table():
         WHERE il.quantity > 0
     ''')
 
+    # Create the InvoiceView view
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS InvoiceView AS
         SELECT i.invoice_id, i.date, s.name AS supplier_name, s.address AS supplier_address, i.total_amount, i.due_date, i.currency, i.payment_status
@@ -581,6 +473,24 @@ def display_invoices():
     headers = ['InvoiceID', 'Date', 'Supplier Name', 'Supplier Address', 'TotalAmount', 'DueDate', 'Currency', 'PaymentStatus']
 
     return render_template('index.html', view='invoices', headers=headers, data=data)
+
+@app.route('/invoice_details/<int:invoice_id>')
+def display_invoice_details(invoice_id):
+    conn = sqlite3.connect('inventory.db')
+    c = conn.cursor()
+
+    c.execute('SELECT * FROM InvoiceDetails WHERE invoice_id = ?', (invoice_id,))
+
+    data = c.fetchall()
+    conn.close()
+
+    headers = ['InvoiceID', 'Date', 'TotalAmount', 'DueDate', 'Currency', 'PaymentStatus', 
+               'Supplier Name', 'Supplier Address', 'Product ID', 'Quantity', 'Unit Price', 
+               'Discount Percentage', 'Tax Rate', 'Product Name', 'Product Description', 
+               'Product Price', 'Manufacturer', 'Category Name', 'Unit Name']
+
+    return render_template('index.html', view='invoice_details', headers=headers, data=data)
+
 
 
 @app.route('/upload', methods=['POST'])

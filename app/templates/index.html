@@ -12,6 +12,9 @@
             background-color: #f2f2f2;
             margin: 0;
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         h1 {
@@ -45,6 +48,51 @@
             background-color: #4CAF50;
             color: white;
             cursor: pointer;
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-self: stretch;
+            max-width: 100%;
+        }
+
+        .left-actions {
+            align-self: flex-start;
+        }
+
+        .center-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .center-actions {
+            display: flex;
+            justify-content: space-around; /* Adjusted for better spacing distribution */
+            width: 50%;  /* Adjusted to give buttons more space */
+        }
+
+        .center-buttons button {
+            min-width: 150px; /* Ensures buttons have some minimum width */
+            white-space: nowrap; /* Prevents button text from breaking into multiple lines */
+        }
+
+        .center-buttons button:first-child {
+            margin-right: 10px; /* Add space to the right of the first button */
+        }
+
+        .center-buttons button:last-child {
+            margin-left: 10px; /* Add space to the left of the second button */
+        }
+
+        .form-button-spacing {
+            margin-top: 0px;  
         }
 
         button:hover {
@@ -114,33 +162,44 @@
         .remove-item:hover {
             background-color: #B71C1C !important;
         }
+        
+        .deplete-item {
+            background-color: #D32F2F !important;
+        }
+
+        .deplete-item:hover {
+            background-color: #B71C1C !important;
+        }
     </style>
 </head>
 <body>
-    <h1>Receipts</h1>
-
-    <div class="form-row">
-        <form action="/add_receipt" method="get">
-            <button type="submit">Add Receipt/Items Manually</button>
-        </form>
+    <div class="center-container">
+        <h1>Receipts</h1>
+        <div class="center-actions">
+            <form action="/items" method="get" class="center-buttons">
+                <button type="submit">View All Items</button>
+            </form>
+            <form action="/invoices" method="get" class="center-buttons">
+                <button type="submit">View Invoices</button>
+            </form>
+        </div>
     </div>
+    
 
-    <form action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="pdf_file">
-        <button type="submit">Upload and Process PDF</button>
-    </form>
-
-    <div class="form-row">
-        <form action="/items" method="get">
-            <button type="submit">View All Items</button>
-        </form>
-        <form action="/invoices" method="get">
-            <button type="submit">View Invoices</button>
-        </form>
-    </div>
+    <div class="action-row">
+        <div class="left-actions">
+            <form action="/add_receipt" method="get" class="form-button-spacing">
+                <button type="submit">Add Receipt/Items Manually</button>
+            </form>
+        
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <input type="file" name="pdf_file">
+                <button type="submit">Upload and Process PDF</button>
+            </form>
+        </div>                
+    </div>       
 
     {% if view == 'items' %}
-    <h2>All Items</h2>
     <table>
         <thead>
             <tr>
@@ -160,15 +219,17 @@
                 <td>{{ row[4] }}</td>
                 <td>{{ row[5] }}</td>
                 <td>
-                    <form action="/delete" method="post">
-                        <input type="hidden" name="product_id" value="{{ row[0] }}">
-                        <button type="submit">Delete</button>
-                    </form>
-                    <form action="/reduce" method="post">
-                        <input type="hidden" name="product_id" value="{{ row[0] }}">
-                        <input type="text" name="reduce_amount" pattern="\d+(,\d*)?" title="Please enter a valid number with a comma separator" step="0.001">
-                        <button type="submit">Reduce Quantity</button>
-                    </form>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <form action="/reduce" method="post">
+                            <input type="hidden" name="product_id" value="{{ row[0] }}">
+                            <input type="text" name="reduce_amount" pattern="\d+([,.]\d*)?" title="Please enter a valid number with either a comma or dot separator" step="0.001">
+                            <button type="submit">Reduce Quantity</button>
+                        </form>
+                        <form action="/delete" method="post">
+                            <input type="hidden" name="product_id" value="{{ row[0] }}">
+                            <button type="submit" class="deplete-item">Deplete</button>
+                        </form>
+                    </div>
                 </td>
             </tr>
             {% endfor %}
@@ -216,17 +277,37 @@
     </form>
     {% elif view == 'invoices' %}
     <h2>Invoices</h2>
-    <form action="/invoices" method="get">
-        <div class="form-row">
-            <select name="filter">
-                <option value="">All</option>
-                {% for pdf_file in pdf_files %}
-                <option value="{{ pdf_file }}" {% if filter_value == pdf_file %}selected{% endif %}>{{ pdf_file }}</option>
+    <table>
+        <thead>
+            <tr>
+                {% for header in headers %}
+                <th>{{ header }}</th>
                 {% endfor %}
-            </select>
-            <button type="submit">Apply Filter</button>
-        </div>
-    </form>
+                <th>Actions</th> <!-- Added this line for new 'Actions' column header -->
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in data %}
+            <tr class="table-row">
+                <td>{{ row[0] }}</td>
+                <td>{{ row[1] }}</td>
+                <td>{{ row[2] }}</td>
+                <td>{{ row[3] }}</td>
+                <td>{{ row[4] }}</td>
+                <td>{{ row[5] }}</td>
+                <td>{{ row[6] }}</td>
+                <td>{{ row[7] }}</td>
+                <td> <!-- Added this new cell for 'View Invoice Details' button -->
+                    <form action="/invoice_details/{{ row[0] }}" method="get">
+                        <button type="submit" class="details-button">View Invoice Details</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% elif view == 'invoice_details' %}
+    <h2>Invoices</h2>
     <table>
         <thead>
             <tr>
@@ -246,6 +327,18 @@
                 <td>{{ row[5] }}</td>
                 <td>{{ row[6] }}</td>
                 <td>{{ row[7] }}</td>
+                <td>{{ row[8] }}</td>
+                <td>{{ row[9] }}</td>
+                <td>{{ row[10] }}</td>
+                <td>{{ row[11] }}</td>
+                <td>{{ row[12] }}</td>
+                <td>{{ row[13] }}</td>
+                <td>{{ row[14] }}</td>
+                <td>{{ row[15] }}</td>
+                <td>{{ row[16] }}</td>
+                <td>{{ row[17] }}</td>
+                <td>{{ row[18] }}</td>
+
             </tr>
             {% endfor %}
         </tbody>
